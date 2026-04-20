@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Team Chohan">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0F9B58">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="https://em-content.zobj.net/source/apple/391/trophy_1f3c6.png">
+<title>Team Chohan S.L</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+@media(display-mode:standalone){body{padding-top:env(safe-area-inset-top)}}
+html,body{margin:0;padding:0;font-family:Arial,sans-serif;background:#1A1A2E;color:#fff;min-height:100vh;width:100%;overflow-x:hidden}
+.hdr{background:#0F9B58;padding:16px;text-align:center;position:sticky;top:0;z-index:10}
+.hdr h1{margin:0;font-size:20px}.hdr p{margin:3px 0 0;font-size:12px;opacity:.8}
+.wrap{padding:14px;width:100%;max-width:500px;margin:0 auto}
+.toggle{display:flex;background:#16213E;border-radius:10px;margin-bottom:14px;overflow:hidden}
+.tog{flex:1;padding:13px;text-align:center;cursor:pointer;font-size:15px;font-weight:bold;border:none;background:transparent;color:#aaa;-webkit-user-select:none}
+.tog.on{background:#1565C8;color:#fff;border-radius:10px}
+.row{display:flex;gap:10px;margin-bottom:14px;align-items:center}
+label{font-size:14px;color:#aaa;min-width:80px}
+input{flex:1;padding:14px;border-radius:10px;border:none;background:#16213E;color:#fff;font-size:18px;text-align:center;-webkit-appearance:none;appearance:none}
+input[type=number]{max-width:90px;flex:none}
+.info{background:#0D0D2A;border:1px solid #1565C8;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:14px;text-align:center;display:none;line-height:1.6}
+.info b{color:#fff;font-size:16px;display:block;margin-bottom:4px}
+.btns{display:flex;gap:12px}
+.btn{flex:1;padding:18px;border:none;border-radius:12px;font-size:18px;font-weight:bold;cursor:pointer;color:#fff;-webkit-user-select:none;touch-action:manipulation}
+.add{background:#0F9B58}.sub{background:#E94560}
+.btn:active{opacity:.7;transform:scale(.98)}.btn:disabled{opacity:.4}
+.btn,.tog{touch-action:manipulation}
+.res{margin:14px 0;padding:16px;border-radius:12px;font-size:15px;text-align:center;display:none;line-height:1.5}
+.ok{background:#1B5E20;border-left:5px solid #0F9B58}
+.err{background:#7f1d1d;border-left:5px solid #E94560}
+.prod{font-weight:bold;font-size:18px;margin-bottom:4px}
+.hist-hdr{font-size:13px;color:#aaa;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center}
+.hi{background:#16213E;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hok{border-left:3px solid #0F9B58}.her{border-left:3px solid #E94560}
+.spin{display:none;text-align:center;padding:10px;color:#aaa;font-size:14px}
+</style>
+</head>
+<body>
+<div class="hdr"><h1>TEAM CHOHAN S.L</h1><p style="margin:4px 0 0;font-size:16px;opacity:.9">الحمد لله</p></div>
+<div class="wrap">
+  <div class="toggle">
+    <button class="tog on" id="tU" onclick="setMode('u')">📦 Unidades</button>
+    <button class="tog"    id="tB" onclick="setMode('b')">🗃️ Cajas</button>
+  </div>
+  <div class="row">
+    <label>SKU</label>
+    <input id="sku" placeholder="Escribe el SKU" autocapitalize="characters" autocomplete="off" oninput="onSkuInput()">
+  </div>
+
+  <div class="info" id="inf"></div>
+  <div class="row">
+    <label id="ql">Unidades</label>
+    <input type="number" id="qty" value="1" min="1" max="9999" oninput="onQtyInput()">
+  </div>
+  <div class="btns">
+    <button class="btn add" id="bAdd" onclick="send('sumar')">+ SUMAR</button>
+    <button class="btn sub" id="bSub" onclick="send('restar')">− RESTAR</button>
+  </div>
+  <div class="spin" id="spin">⏳ Actualizando...</div>
+  <div class="res" id="res"></div>
+  <div class="hist-hdr">
+    Movimientos
+  
+  </div>
+  <div id="hist"></div>
+</div>
+
+<script>
+var MODE = 'u';
+var UPB  = null;
+var PROD = '';
+var FAM  = '';
+var skuTimer = null;
+
+function setMode(m) {
+  MODE = m;
+  document.getElementById('tU').className = 'tog' + (m==='u' ? ' on' : '');
+  document.getElementById('tB').className = 'tog' + (m==='b' ? ' on' : '');
+  document.getElementById('ql').textContent = m==='b' ? 'Cajas' : 'Unidades';
+  document.getElementById('qty').value = 1;
+  if (m === 'u') {
+    document.getElementById('inf').style.display = 'none';
+    UPB = null; PROD = '';
+  } else {
+    onSkuInput();
+  }
+}
+
+function onSkuInput() {
+  if (MODE !== 'b') return;
+  clearTimeout(skuTimer);
+  var s = document.getElementById('sku').value.trim();
+  if (!s) { document.getElementById('inf').style.display='none'; UPB=null; return; }
+  document.getElementById('inf').style.display = 'block';
+  document.getElementById('inf').innerHTML = '⏳ Buscando...';
+  UPB = null;
+  skuTimer = setTimeout(function() {
+    fetch(WS_URL + '?lookup=1&sku=' + encodeURIComponent(s))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          UPB = d.upb; PROD = d.producto; FAM = d.familia || '';
+          updateInfo();
+        } else {
+          document.getElementById('inf').innerHTML = '❌ ' + d.msg;
+        }
+      })
+      .catch(function() {
+        document.getElementById('inf').innerHTML = '❌ Error de conexión';
+      });
+  }, 600);
+}
+
+function onQtyInput() {
+  if (MODE === 'b' && UPB) updateInfo();
+}
+
+function updateInfo() {
+  var q = parseInt(document.getElementById('qty').value) || 1;
+  document.getElementById('inf').innerHTML =
+    (FAM ? '<span style="background:#1565C8;color:#fff;padding:1px 7px;border-radius:6px;font-size:11px">' + FAM + '</span> ' : '') +
+    '<b>' + PROD + '</b><br>' +
+    q + ' caja' + (q>1?'s':'') + ' × ' + UPB + ' = <b>' + (q*UPB) + ' uds</b>';
+}
+
+function send(accion) {
+  var sku = document.getElementById('sku').value.trim();
+  var qty = parseInt(document.getElementById('qty').value) || 1;
+  if (!sku) { flash(false, 'Escribe el SKU', '', ''); return; }
+  if (MODE === 'b' && !UPB) { flash(false, 'Espera — buscando unidades/caja', '', ''); return; }
+
+  var realQty = MODE === 'b' ? qty * UPB : qty;
+
+  setBtns(true);
+  document.getElementById('spin').style.display = 'block';
+
+  fetch(WS_URL + '?sku=' + encodeURIComponent(sku) + '&accion=' + accion + '&qty=' + realQty)
+    .then(function(r) { return r.text(); })
+    .then(function(t) {
+      setBtns(false);
+      document.getElementById('spin').style.display = 'none';
+      var ok = t.indexOf('✅') === 0;
+      var lines = t.split('\n');
+      if (ok) {
+        // Parse: line0=✅ PRODUCTO, line1=+N uds, line2=Stock: X→Y
+        var prod = lines[0].replace('✅ ', '');
+        var lbl = MODE === 'b'
+          ? qty + ' caja' + (qty>1?'s':'') + ' (' + realQty + ' uds)'
+          : lines[1] || realQty + ' uds';
+        flash(true, prod, lbl, lines[2] || '');
+        // For hist we need familia - parse from prod or use SKU
+        addHist(true, (accion==='sumar'?'+':'-') + realQty + ' ' + prod, null, '');
+        document.getElementById('sku').value = '';
+        document.getElementById('qty').value = 1;
+        document.getElementById('inf').style.display = 'none';
+        UPB = null; PROD = ''; FAM = '';
+        document.getElementById('sku').focus();
+      } else {
+        flash(false, lines[0] || 'Error', '', '');
+        addHist(false, lines[0] || 'Error');
+      }
+    })
+    .catch(function(e) {
+      setBtns(false);
+      document.getElementById('spin').style.display = 'none';
+      flash(false, 'Error de conexión', '', '');
+    });
+}
+
+function setBtns(d) {
+  document.getElementById('bAdd').disabled = d;
+  document.getElementById('bSub').disabled = d;
+}
+
+function flash(ok, l1, l2, l3) {
+  var r = document.getElementById('res');
+  r.style.display = 'block';
+  r.className = 'res ' + (ok ? 'ok' : 'err');
+  r.innerHTML = (l1 ? '<div class="prod">' + l1 + '</div>' : '') +
+                (l2 ? '<div>' + l2 + '</div>' : '') +
+                (l3 ? '<div style="font-size:13px;opacity:.8">' + l3 + '</div>' : '');
+  clearTimeout(r._t);
+  r._t = setTimeout(function() { r.style.display = 'none'; }, 4000);
+}
+
+function addHist(ok, t, stock, familia) {
+  var h = document.getElementById('hist');
+  var d = document.createElement('div');
+  var tm = new Date().toLocaleTimeString('es', {hour:'2-digit', minute:'2-digit'});
+  d.className = 'hi ' + (ok ? 'hok' : 'her');
+  var parts = ok ? t.match(/^([+-]\d+)\s(.+)$/) : null;
+  var famTag = (ok && familia) ? '<span style="background:#1565C8;color:#fff;padding:1px 7px;border-radius:6px;font-size:11px;margin-right:5px">' + familia + '</span>' : '';
+  var txt = (ok && parts) ? parts[2] + ' <b>' + parts[1] + '</b>' : t;
+  var stockBadge = (ok && stock !== undefined) ? '<span style="background:#0F9B58;color:#fff;padding:1px 7px;border-radius:6px;font-size:11px;margin-right:5px">📦 ' + stock + '</span>' : '';
+  d.innerHTML = '<span>' + (ok?'✅':'❌') + ' ' + famTag + txt + '</span><span>' + stockBadge + '<span style="color:#aaa">' + tm + '</span></span>';
+  h.insertBefore(d, h.firstChild);
+  if (h.children.length > 20) h.removeChild(h.lastChild);
+
+}
+
+document.getElementById('sku').focus();
+
+</script>
+</body>
+</html>
