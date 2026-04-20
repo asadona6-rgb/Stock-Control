@@ -101,19 +101,16 @@ function onSkuInput() {
   document.getElementById('inf').innerHTML = '⏳ Buscando...';
   UPB = null;
   skuTimer = setTimeout(function() {
-    fetch(WS_URL + '?lookup=1&sku=' + encodeURIComponent(s))
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
+    jsonp(WS_URL + '?lookup=1&sku=' + encodeURIComponent(s),
+      function(d) {
         if (d.ok) {
           UPB = d.upb; PROD = d.producto; FAM = d.familia || '';
           updateInfo();
         } else {
           document.getElementById('inf').innerHTML = '❌ ' + d.msg;
         }
-      })
-      .catch(function() {
-        document.getElementById('inf').innerHTML = '❌ Error de conexión';
-      });
+      },
+      function() { document.getElementById('inf').innerHTML = '❌ Error de conexión'; });
   }, 600);
 }
 
@@ -140,33 +137,27 @@ function send(accion) {
   setBtns(true);
   document.getElementById('spin').style.display = 'block';
 
-  fetch(WS_URL + '?sku=' + encodeURIComponent(sku) + '&accion=' + accion + '&qty=' + realQty)
-    .then(function(r) { return r.text(); })
-    .then(function(t) {
+  jsonp(WS_URL + '?sku=' + encodeURIComponent(sku) + '&accion=' + accion + '&qty=' + realQty,
+    function(d) {
       setBtns(false);
       document.getElementById('spin').style.display = 'none';
-      var ok = t.indexOf('✅') === 0;
-      var lines = t.split('\n');
-      if (ok) {
-        // Parse: line0=✅ PRODUCTO, line1=+N uds, line2=Stock: X→Y
-        var prod = lines[0].replace('✅ ', '');
+      if (d.ok) {
         var lbl = MODE === 'b'
           ? qty + ' caja' + (qty>1?'s':'') + ' (' + realQty + ' uds)'
-          : lines[1] || realQty + ' uds';
-        flash(true, prod, lbl, lines[2] || '');
-        // For hist we need familia - parse from prod or use SKU
-        addHist(true, (accion==='sumar'?'+':'-') + realQty + ' ' + prod, null, '');
+          : realQty + ' uds';
+        flash(true, (d.familia ? '['+d.familia+'] ' : '') + d.producto, (accion==='sumar'?'+':'-') + lbl, 'Stock: ' + d.antes + ' → ' + d.despues);
+        addHist(true, (accion==='sumar'?'+':'-') + realQty + ' ' + d.producto, d.despues, d.familia);
         document.getElementById('sku').value = '';
         document.getElementById('qty').value = 1;
         document.getElementById('inf').style.display = 'none';
         UPB = null; PROD = ''; FAM = '';
         document.getElementById('sku').focus();
       } else {
-        flash(false, lines[0] || 'Error', '', '');
-        addHist(false, lines[0] || 'Error');
+        flash(false, d.msg, '', '');
+        addHist(false, d.msg);
       }
-    })
-    .catch(function(e) {
+    },
+    function() {
       setBtns(false);
       document.getElementById('spin').style.display = 'none';
       flash(false, 'Error de conexión', '', '');
